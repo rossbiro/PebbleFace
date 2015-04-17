@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "Window.h"
 
-struct object *myWindows;
+struct objects *myWindows;
 
 static void MyWindowDestructor(void *vptr) {
   MyWindow *mw = (MyWindow *)vptr;
@@ -10,9 +10,9 @@ static void MyWindowDestructor(void *vptr) {
     mw->myTextLayers = NULL;
   }
   
-  if (w) {
-    destroy_winodw(w);
-    w = NULL;
+  if (mw->w) {
+    window_destroy(mw->w);
+    nw->w = NULL;
   }
 }
 
@@ -22,22 +22,27 @@ static MyWindow *findMyWindow(Window *w) {
 }
 
 static void window_load(Window *w) {
-  MyWindow *w = findMyWIndow(w);
+  MyWindow *mw = findMyWindow(w);
   for (int i = 0; i < mw->myTextLayers->count; ++i) {
     MyTextLayer *mtl = (MyTextLayer *)mw->myTextLayers->objects[i];
     if (mtl != NULL) {
-      text_layers_load(mw, mtl);
+      myTextLayerLoad(mw, mtl);
     }
   }
 }
 
 static void window_unload(Window *w) {
   MyWindow *mw = findMyWindow(w);
-  text_layers_unload(mw, mtl);
+  for (int i = 0; i < mw->myTextLayers->count; ++i) {
+    MyTextLayer *mtl = (MyTextLayer *)mw->myTextLayers->objects[i];
+    if (mtl != NULL) {
+      myTextLayersLoad(mw, mtl);
+    }
+  }
 }
 
 int init_windows() {
-  myWindows = createObject(MyWindowDestructor);
+  myWindows = createObjects(MyWindowDestructor);
   return 0;
 }
 
@@ -73,7 +78,5 @@ int alloc_window() {
       .load = window_load,
       .unload = window_unload
     });
-
-  
 }
 

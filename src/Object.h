@@ -2,17 +2,17 @@
 #define REMOTESCREEN_OBJECT_H_
   
 #include <pebble.h>
-typedef (*ObjectDestructor)(void *);
+typedef void (*ObjectDestructor)(void *);
 
-struct objects {
+typedef struct objects {
   void **objects;
   short count;
   ObjectDestructor destruct;
-};
+} objects;
 
 struct objects *CreateObjects(ObjectDestructor);
 int allocObjects(struct objects *objects, void *new_obj);
-void freeObjects(obiects *o);
+void freeObjects(objects *o);
 
 #define DEFINE_OBJECT(name) \
 struct objects *obj_name; \

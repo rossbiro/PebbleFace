@@ -3,7 +3,9 @@
   
 #include <pebble.h>
 
-struct MyTextLayer {
+struct MyWindow;
+  
+typedef struct MyTextLayer {
   TextLayer *tl;
   GRect rect;
   GColor fg;
@@ -11,13 +13,16 @@ struct MyTextLayer {
   GFont font;
   char *text;
   GTextAlignment alignment;
-};
+  struct MyWindow *parent;
+} MyTextLayer;
 
-void text_layer_load(MyWindow *, MyTextLayer *);
-void text_layer_unload(MyWindow *, MyTextLayer *);
+void text_layer_load(struct MyWindow *, MyTextLayer *);
+void text_layer_unload(struct MyWindow *, MyTextLayer *);
 
-int createTextLayer(MyWindow *mw);
+int createTextLayer(struct MyWindow *mw);
 int myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr);
-void MyTextLayerDestructor(void *);
+void myTextLayerDestructor(void *);
+void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
+void myTextLayerUnload(struct MyWindow *mw, MyTextLayer *mtl);
 
 #endif //REMOTESCREEN_TEXTLAYER_H_

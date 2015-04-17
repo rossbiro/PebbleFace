@@ -1,7 +1,7 @@
 #include <pebble.h>
 #include "Object.h"
 
-objects *createObjects(ObjectDestruct d) {
+objects *createObjects(ObjectDestructor d) {
   struct objects *o = malloc(sizeof(*o));
   if (o == NULL) {
     return NULL;
