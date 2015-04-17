@@ -1,5 +1,7 @@
 #include <pebble.h>
   
+#define API_VERSION 0x1
+  
 typedef (*ObjectDestructor)(void *);
 struct objects {
   void **objects;
@@ -56,7 +58,7 @@ void freeObjects(obiects *o) {
 #define DEFINE_OBJECT(name) \
 \
 struct objects *obj_name; \
-void obj_init_name(void) { obj_name = createObjects(destructor_name); } \
+void obj_init_name(void) { obj_name = createObjects(destructor##name); } \
 int obj_new_name(name *n) { return allocObjects(obj_name, n); } \
 void obj_deinit_name(void) {freeObjects(obj_name); obj_name = NULL; }
 
@@ -72,8 +74,8 @@ int newWindow() {
   return object_new_Window(w);
 }
 
-void destructor_Window(void *w) {
-  window_destroy(w);
+void destructorWindow(void *w) {
+  window_destroy((Window *)w);
 }
 
 int newTextLayer(GRect gr) {
@@ -84,7 +86,11 @@ int newTextLayer(GRect gr) {
   return object_new_TextLayer(t);
 }
 
-enum ObjectTypes {
+void destructorTextLayer(void *l) {
+  destroy_text_layer((TextLayer *)l);
+}
+
+enum ObjectType {
   OBJ_GLOBAL = 0, //no object
   OBJ_WINDOW = 1,
   OBJ_TEXT_LAYER = 2,
@@ -98,15 +104,16 @@ enum GlobalFuncs {
 
 enum Keys {
   KEY_STATUS = 0,
-  KEY_API_VERSION=1,
-  KEY_OBJECT_TYPE = 2,
-  KEY_OBJECT_ID = 3,
-  KEY_METHOD_ID = 4,
-  KEY_RETURN_CODE = 5,
-  KEY_RETURN_VALUE = 6,
-  KEY_ARG1 = 7,
-  KEY_ARG2 = 8,
-  KEY_ARG3 = 9,
+  KEY_API_VERSION,
+  KEY_TRANSACTINO_ID,
+  KEY_OBJECT_TYPE,
+  KEY_OBJECT_ID,
+  KEY_METHOD_ID,
+  KEY_RETURN_CODE,
+  KEY_RETURN_VALUE,
+  KEY_ARG1,
+  KEY_ARG2,
+  KEY_ARG3,
 };
 
 enum Status {
@@ -114,36 +121,157 @@ enum Status {
   STATUS_STOPPED = 2,
 };
 
+int push_window_wrapper(void *vptr) {
+  Winodw *w = (Window *)vptr;
+  
+}
+
+struct Method {
+  ObjectType ot;
+  int method_id;
+  int m_num_args;
+  void *(*getObject)(int);
+  void *func;
+  bool is_handle;
+} method_list[] = {
+  {OBJ_WINDOW, METHOD_ID_PUSH_WINDOW, 0, getWindow, push_window_wrapper, false},
+};
+
 // Write message to buffer & send
 void send_start_message() {
 	DictionaryIterator *iter;
 	
 	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, STATUS_KEY, STATUS_STARTED);
+	dict_write_uint8(iter, KEY_STATUS, STATUS_STARTED);
+  dict_write_uint8(iter, KEY_API_VERSION, API_VERSION);
 	
 	dict_write_end(iter);
   app_message_outbox_send();
 }
 
-void callGlobal(DictionaryIterator *received) {
+void callGlobal(uint32_t tid, DictionaryIterator *received) {
   Tuple *tuple = dict_find(recieved, KEY_METHOD_ID);
   if (tuple == NULL) {
-    send_err(-EINVALID_OP);
+    send_err(0, -EINVALID_OP);
     return;
   }
   
   GlobalFuncs gf;
   gf = (int)tuple->value->uint32;
   switch (gf) {
+    default:
+      send_err(tid, -EINVALID_OP);
+      return;
+    
     case FUNC_NEW_WINDOW:
-      
+      int wh = newWindow();
+      if (wh < 0) {
+        send_err(tid, wh);
+      } else {
+        send_res(tid, wh);
+      }
+    return;
+    
+    case FUNC_NEW_TEXT_LAYER:
+      GRect gr;
+      int err = GetGRect(&gr, dict_find(received, KEY_ARG1));
+      if (err < 0) {
+        send_handle(tid, err);
+        return;
+      }
+    
+      int tlh = newTextLayer(g);
+      if (tlh < 0) {
+        send_err(tid, tlh);
+      } else {
+        send_handle(tid, tlh)
+      }
+    return;
+  
   }
+}
+
+void call_method(int tid, int oid, stuct Method *m,
+                 DictionaryIterator *received ) {
+    void *obj = m->getObject(oid);
+    if (obj == NULL) {
+      send_err(tid, -ERRNO_OBJ);
+      return;
+    }
+  
+    int err = -ERRINVALID_ARGS;
+    switch(m->num_args) {
+      case 0:
+        err = (METHOD_TYPE_0)(m->func)(obj);
+        break;
+      
+      case 1:
+        Tuple a1 = dict_find(received, KEY_ARG1);
+        err = (METHOD_TYPE_1)(m->func)(obj, a1);
+        break;
+      
+      case 2:
+        Tuple a1 = dict_find(received, KEY_ARG1);
+        Tuple a2 = dict_find(received, KEY_ARG2);
+        err = (METHOD_TYPE_2)(m->func)(obj, a1, a2);
+        break;
+      
+      case 3:
+        Tuple a1 = dict_find(received, KEY_ARG1);
+        Tuple a2 = dict_find(received, KEY_ARG2);
+        Tuple a3 = dict_find(received, KEY_ARG3);
+        err = (METHOD_TYPE_3)(m->func)(obj, a1, a2, a3);
+        break;
+    }
+  
+    if (err < 0) {
+      send_err(tid, err);
+    } else if (m->is_handle) {
+      send_handle(tid, err);
+    } else {
+      send_res(tid, err);
+    }
+  
+}
+
+void callObject(int tid, int ot, DictionaryIterator *received) {
+  Tuple t = dict_find(received, KEY_OBJECT_ID);
+  if (t == NULL) {
+    send_err(tid, -ERRNO_OBJ);
+    return;
+  }
+  
+  int oid = (int) t->value->uint32;
+  
+  t = dict_find(received, KEY_METHOD_ID );
+  if (t == NULL) {
+    send_err(tid, -ERRINVALID_OP);
+      return;
+  }
+  
+  int mid = (int)t->value->uint32;
+  
+  struct Method *m = getMethod(ot, mid);
+  if (m == NULL) {
+    send_err(tid, -ERRINVALID_OP);
+    return;
+  }
+  
+  call_methd(tid, ot, oid, m, received);
 }
 
 // Called when a message is received from PebbleKitJS
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
 	enum ObjectTypes ot;
+
+  tuple = dict_find(received, KEY_TRANSACTION_ID);
+  if (tuple == NULL) {
+    send_err(0, -EINVALID_TRANSACTION);
+    return;
+  }
+  
+  uint32_t tid = tuple->value->uint32;
   
 	tuple = dict_find(received, KEY_OBJECT_TYPE);
 	if(tuple) {
@@ -155,11 +283,11 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
   
   switch (ot) {
     default:
-      caollObject(ot, received);
+      callObject(tid, ot, received);
       break;
     
     case OBJ_GLOBAL:
-      callGlobal(received);
+      callGlobal(tid, received);
       break;
   }
 }
@@ -173,8 +301,7 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 }
 
 void init(void) {
-	obj_init_Window();
-  obj_init_TextLayer();
+  init_windows();
 	
 	// Register AppMessage handlers
 	app_message_register_inbox_received(in_received_handler); 
@@ -188,8 +315,7 @@ void init(void) {
 
 void deinit(void) {
 	app_message_deregister_callbacks();
-	obj_deinit_TextLayer();
-  obj_deinit_Window();
+  deinit_windows();
 }
 
 int main( void ) {
