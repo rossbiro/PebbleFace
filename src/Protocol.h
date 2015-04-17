@@ -6,20 +6,20 @@
 
 #define API_VERSION 0x0000 // Won't worry compatibility until 0x100. i.e. 1.0
 
-enum RemoteFuncs {
+typedef enum RemoteFuncs {
   FUNC_NO_FUNC = 0,
   FUNC_NEW_WINDOW ,
   FUNC_NEW_TEXT_LAYER,
   FUNC_APPLY_ATTRIBUTES,
   FUNC_PUSH_WINDOW,
-};
+} RemoteFuncs;
 
 enum Keys {
   KEY_STATUS = 0,
   KEY_API_VERSION,
   KEY_ERROR_CODE,
   KEY_RETURN_VALUE,
-  KEY_TRANSACTINO_ID,
+  KEY_TRANSACTION_ID,
   KEY_WINDOW_ID,
   KEY_TEXT_LAYER_ID,
   KEY_METHOD_ID,

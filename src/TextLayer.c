@@ -46,7 +46,7 @@ int createTextLayer(MyWindow *mw) {
   return allocObjects(mw->myTextLayers, mtl);
 }
 
-void MyTextLayerDestructor(void *vptr) {
+void myTextLayerDestructor(void *vptr) {
   MyTextLayer *mtl = (MyTextLayer *)vptr;
   if (mtl->text) {
     free(mtl->text);
@@ -87,7 +87,7 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
       
       case KEY_ATTRIBUTE_FONT:
         if (t->type == TUPLE_CSTRING) {
-          mtl->font = fonts_get_system_font(t->value.cstring);
+          mtl->font = fonts_get_system_font(t->value->cstring);
         } // Int could be a resource.  But then we need to unload.
         break;
       
@@ -111,10 +111,24 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
       
       case KEY_ATTRIBUTE_RECT:
         if (t->type == TUPLE_BYTE_ARRAY && t->length == 8) {
-          mtl->rect = GRectFromByteArray(t->value->data)
+          mtl->rect = GRectFromByteArray(t->value->data);
         }
       break;
       
     }    
   }
+  
+  return 0;
+}
+
+MyTextLayer *getTextLayerByID(MyWindow *mw, int id) {
+  if (id < 0 || mw == NULL) {
+    return NULL;
+  }
+  
+  if (id >= mw->myTextLayers->count) {
+    return NULL;
+  }
+  
+  return (MyTextLayer *)(mw->myTextLayers->objects[id]);
 }

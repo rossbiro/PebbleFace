@@ -1,4 +1,4 @@
-#ifndef REMOTESCREEN_ERROS_H_
+#ifndef REMOTESCREEN_ERRORS_H_
 #define REMOTESCREEN_ERRORS_H_
 
 #include "Standard.h"
@@ -8,6 +8,7 @@ enum ErrorCodes {
     ENOWINDOW, 
     ENOLAYER,
     EINVALID_OP,
+    EINVALID_TRANSACTION,
 };
 
 #ifndef RCC

@@ -24,5 +24,6 @@ int myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr);
 void myTextLayerDestructor(void *);
 void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
 void myTextLayerUnload(struct MyWindow *mw, MyTextLayer *mtl);
+MyTextLayer *getTextLayerByID(struct MyWindow *mw, int id);
 
 #endif //REMOTESCREEN_TEXTLAYER_H_

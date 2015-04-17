@@ -1,6 +1,6 @@
 #include <pebble.h>
 #include "Object.h"
-#Include "Errors.h"
+#include "Errors.h"
 
 objects *createObjects(ObjectDestructor d) {
   struct objects *o = malloc(sizeof(*o));
@@ -13,7 +13,6 @@ objects *createObjects(ObjectDestructor d) {
   o->destruct = d;
   
   return o;
-  
 }
 
 int allocObjects(struct objects *objects, void *new_obj) {

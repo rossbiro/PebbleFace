@@ -53,7 +53,7 @@ void deinit_windows() {
   }
 }
 
-int alloc_window() {
+int allocWindow() {
     MyWindow *mw = malloc(sizeof(MyWindow));
     if (mw == NULL) {
       return -ENOMEM;
@@ -82,3 +82,15 @@ int alloc_window() {
     return 0;
 }
 
+void pushWindow(MyWindow *mw) {
+  // Show the Window on the watch, with animated=true
+  window_stack_push(mw->w, true);
+}
+
+MyWindow *getWindowByID(int id) {
+  if (id < 0 || myWindows == NULL || myWindows->count >= id) {
+    return NULL;
+  }
+  
+  return (MyWindow *)(myWindows->objects[id]);
+}

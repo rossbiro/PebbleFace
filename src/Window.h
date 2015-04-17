@@ -14,7 +14,8 @@ extern struct objects *myWindows;
 
 int init_windows();
 void deinit_windows();
-int alloc_window();
-MyWindow *getWindowById(int id);
+int allocWindow();
+MyWindow *getWindowByID(int id);
+void pushWindow(MyWindow *);
   
 #endif

@@ -2,22 +2,6 @@
 #include "Window.h"
 #include "Protocol.h"
 #include "TextLayer.h"
-  
-int push_window_wrapper(void *vptr) {
-  Winodw *w = (Window *)vptr;
-  
-}
-
-struct Method {
-  ObjectType ot;
-  int method_id;
-  int m_num_args;
-  void *(*getObject)(int);
-  void *func;
-  bool is_handle;
-} method_list[] = {
-  {OBJ_WINDOW, METHOD_ID_PUSH_WINDOW, 0, getWindow, push_window_wrapper, false},
-};
 
 // Write message to buffer & send
 void send_start_message() {
@@ -73,16 +57,16 @@ static int getWindowFromRemote(DictionaryIterator *rdi, MyWindow **mw /* output 
   int wh;
 
   if (t == NULL || t->type != TUPLE_UINT) {
-    return -ENOWINDOW);
+    return -ENOWINDOW;
   }
   
   if (mw == NULL) {
     return 0;
   }
   
-  wh = (int) t->value.uint32;
+  wh = (int) t->value->uint32;
   
-  *mw = getWindowById(wh);
+  *mw = getWindowByID(wh);
   if (*mw == NULL) {
     return -ENOWINDOW;
   }
@@ -94,25 +78,25 @@ static int getTextLayerFromRemote(DictionaryIterator *rdi, MyTextLayer **mtl, My
   int ret;
   int tlh;
   Tuple *t;
-  MyWIndow *lmw;
+  MyWindow *lmw;
   
   RCC(getWindowFromRemote(rdi, &lmw));
   if (mw != NULL) {
     *mw = lmw;
   }
   
-  t = dict_find(rdi, KEY_TEXTLAYER_ID);
+  t = dict_find(rdi, KEY_TEXT_LAYER_ID);
   
   if (t == NULL || t->type != TUPLE_UINT) {
-    return -ENOLAYER);
+    return -ENOLAYER;
   }
   
-  tlh = (int) t->value.uint32;
+  tlh = (int) t->value->uint32;
   if (lmw == NULL) {
     return 0;
   }
   
-  *mtl = getTextLayerById(tlh);
+  *mtl = getTextLayerByID(lmw, tlh);
   
   if (*mtl == NULL) {
     return -ENOLAYER;
@@ -133,7 +117,7 @@ void newTextLayerWrapper(uint32_t tid, DictionaryIterator *rdi) {
   MyWindow *mw;
   int ret=0;
   
-  RRC(getWindowFromRemote(rdi, &mw)); // mw is output
+  RCC(getWindowFromRemote(rdi, &mw)); // mw is output
 
   ret = createTextLayer(mw);
 error_out:
@@ -142,10 +126,10 @@ error_out:
 
 void applyAttributesWrapper(uint32_t tid, DictionaryIterator *rdi) {
   int ret = 0;
-  MyTextLayer *mtl;
+  MyTextLayer *mtl = NULL;
   
   RCC(getTextLayerFromRemote(rdi, &mtl, NULL));
-  RCC(myTextLayerSetAttributes(mlt, rdi));
+  RCC(myTextLayerSetAttributes(mtl, rdi));
   
 error_out:
   send_result(tid, ret);
@@ -194,7 +178,6 @@ void callGlobal(uint32_t tid, DictionaryIterator *received) {
 // Called when a message is received from PebbleKitJS
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
-	enum ObjectTypes ot;
 
   tuple = dict_find(received, KEY_TRANSACTION_ID);
   if (tuple == NULL) {
@@ -203,24 +186,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
   }
   
   uint32_t tid = tuple->value->uint32;
-  
-	tuple = dict_find(received, KEY_OBJECT_TYPE);
-	if(tuple) {
-    ot = (int)tuple->value->uint32;
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Object Type: %d", (int)tuple->value->uint32); 
-	} else {
-    ot = OBJ_GLOBAL;
-  }
-  
-  switch (ot) {
-    default:
-      callObject(tid, ot, received);
-      break;
-    
-    case OBJ_GLOBAL:
-      callGlobal(tid, received);
-      break;
-  }
+  callGlobal(tid, received);
 }
 
 // Called when an incoming message from PebbleKitJS is dropped
@@ -241,7 +207,7 @@ void init(void) {
 		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 	
-	send_message();
+	send_start_message();
 }
 
 void deinit(void) {

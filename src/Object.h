@@ -10,7 +10,7 @@ typedef struct objects {
   ObjectDestructor destruct;
 } objects;
 
-struct objects *CreateObjects(ObjectDestructor);
+struct objects *createObjects(ObjectDestructor);
 int allocObjects(struct objects *objects, void *new_obj);
 void freeObjects(objects *o);
 
