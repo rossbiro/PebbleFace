@@ -12,7 +12,7 @@ static void MyWindowDestructor(void *vptr) {
   
   if (mw->w) {
     window_destroy(mw->w);
-    nw->w = NULL;
+    mw->w = NULL;
   }
 }
 
@@ -36,7 +36,7 @@ static void window_unload(Window *w) {
   for (int i = 0; i < mw->myTextLayers->count; ++i) {
     MyTextLayer *mtl = (MyTextLayer *)mw->myTextLayers->objects[i];
     if (mtl != NULL) {
-      myTextLayersLoad(mw, mtl);
+      myTextLayerLoad(mw, mtl);
     }
   }
 }
@@ -54,17 +54,17 @@ void deinit_windows() {
 }
 
 int alloc_window() {
-    MyWindow *mw = malloc(sizeof(*MyWindow));
+    MyWindow *mw = malloc(sizeof(MyWindow));
     if (mw == NULL) {
       return -ENOMEM;
     }
-    mw->myTextLayers = CreateObject(MyTextLayerDestructor);
+    mw->myTextLayers = createObjects(myTextLayerDestructor);
     if (mw == NULL) {
       free(mw);
       return -ENOMEM;
     }
   
-    mw->w = create_window();
+    mw->w = window_create();
     if (mw->w == NULL) {
       freeObjects(mw->myTextLayers);
       free(mw);
@@ -74,9 +74,11 @@ int alloc_window() {
     window_set_user_data(mw->w, mw);
   
     // Set handlers to manage the elements inside the Window
-    window_set_window_handlers(s_main_window, (WindowHandlers) {
+    window_set_window_handlers(mw->w, (WindowHandlers) {
       .load = window_load,
       .unload = window_unload
     });
+  
+    return 0;
 }
 

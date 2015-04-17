@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "Object.h"
+#Include "Errors.h"
 
 objects *createObjects(ObjectDestructor d) {
   struct objects *o = malloc(sizeof(*o));
@@ -9,7 +10,7 @@ objects *createObjects(ObjectDestructor d) {
   
   o->objects = NULL;
   o->count = 0;
-  o->destructor = d;
+  o->destruct = d;
   
   return o;
   
@@ -37,7 +38,7 @@ int allocObjects(struct objects *objects, void *new_obj) {
   return allocObjects(objects, new_obj); // hopefully the compiler figures out this is tail recursion.
 }
 
-void freeObjects(obiects *o) {
+void freeObjects(objects *o) {
   for (int i = 0; i < o->count; ++i) {
     if (o->objects[i] != NULL) {
       o->destruct(o->objects[i]);

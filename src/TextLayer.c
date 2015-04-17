@@ -81,37 +81,37 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
           if (mtl->text != NULL) {
             free(mtl->text);
           }
-          mtl->text = strdup(mtl->value->cstring);
+          mtl->text = strdup(t->value->cstring);
         }
       break;
       
       case KEY_ATTRIBUTE_FONT:
         if (t->type == TUPLE_CSTRING) {
-          mtl->font = fonts_get_system_font(tuple->value.cstring);
+          mtl->font = fonts_get_system_font(t->value.cstring);
         } // Int could be a resource.  But then we need to unload.
         break;
       
       case KEY_ATTRIBUTE_FG_COLOR:
         if (t->type == TUPLE_UINT) {
-          mtl->fg = t->value.uint32; 
+          mtl->fg = t->value->uint32; 
         }
       break;
       
       case KEY_ATTRIBUTE_BG_COLOR:
         if (t->type == TUPLE_UINT) {
-          mtl->bg = t->value.uint32; 
+          mtl->bg = t->value->uint32; 
         }
       break;
       
       case KEY_ATTRIBUTE_ALIGNMENT:
         if (t->type == TUPLE_UINT) {
-          mtl->alignment = t->value.uint32;
+          mtl->alignment = t->value->uint32;
         }
       break;
       
       case KEY_ATTRIBUTE_RECT:
         if (t->type == TUPLE_BYTE_ARRAY && t->length == 8) {
-          mtl->rect = GRectFromByteArray(t->value.data)
+          mtl->rect = GRectFromByteArray(t->value->data)
         }
       break;
       
