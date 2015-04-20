@@ -20,7 +20,7 @@ void text_layer_load(struct MyWindow *, MyTextLayer *);
 void text_layer_unload(struct MyWindow *, MyTextLayer *);
 
 int createTextLayer(struct MyWindow *mw);
-int myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr);
+int myTextLayerSetAttributes(struct MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *attr);
 void myTextLayerDestructor(void *);
 void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
 void myTextLayerUnload(struct MyWindow *mw, MyTextLayer *mtl);

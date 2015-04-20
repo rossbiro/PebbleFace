@@ -9,6 +9,7 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
     if (mtl->tl == NULL) {
       return;
     }
+    layer_add_child(window_get_root_layer(mw->w), text_layer_get_layer(mtl->tl));
   }
   
   text_layer_set_background_color(mtl->tl, mtl->bg);
@@ -20,7 +21,7 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
   //text_layer_set_font(mtl->tl, mtl->font);
   text_layer_set_text_alignment(mtl->tl, mtl->alignment);
   
-  layer_add_child(window_get_root_layer(mw->w), text_layer_get_layer(mtl->tl));
+  layer_mark_dirty(text_layer_get_layer(mtl->tl));
 
 }
 
@@ -70,7 +71,8 @@ GRect GRectFromByteArray(uint8_t *ba) {
 }
 
 int 
-myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
+myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *attr) {
+  bool changed = false;
   for (Tuple *t = dict_read_first(attr);
        t != NULL;
        t = dict_read_next(attr)) {
@@ -81,6 +83,7 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
             free(mtl->text);
           }
           mtl->text = strdup(t->value->cstring);
+          changed = true;
         } else if (t->type == TUPLE_BYTE_ARRAY) {
           if (mtl->text != NULL) {
             free(mtl->text);
@@ -92,6 +95,7 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
           
           memcpy (mtl->text, t->value->data, t->length);
           mtl->text[t->length] = 0;
+          changed = true;
         }
         APP_LOG(APP_LOG_LEVEL_DEBUG, "Updated text to %s", mtl->text);
       break;
@@ -99,29 +103,34 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
       case KEY_ATTRIBUTE_FONT:
         if (t->type == TUPLE_CSTRING) {
           mtl->font = fonts_get_system_font(t->value->cstring);
+          changed = true;
         } // Int could be a resource.  But then we need to unload.
         break;
       
       case KEY_ATTRIBUTE_FG_COLOR:
         if (t->type == TUPLE_UINT) {
           mtl->fg = t->value->uint32; 
+          changed = true;
         }
       break;
       
       case KEY_ATTRIBUTE_BG_COLOR:
         if (t->type == TUPLE_UINT) {
           mtl->bg = t->value->uint32; 
+          changed = true;
         }
       break;
       
       case KEY_ATTRIBUTE_ALIGNMENT:
         if (t->type == TUPLE_UINT) {
           mtl->alignment = t->value->uint32;
+          changed = true;
         }
       break;
       
       case KEY_ATTRIBUTE_RECT:
         if (t->type == TUPLE_BYTE_ARRAY && t->length == 8) {
+          changed = true;
           mtl->rect = GRectFromByteArray(t->value->data);
         }
       break;
@@ -129,6 +138,9 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
     }    
   }
   
+  if (changed) {
+    myTextLayerLoad(mw, mtl);
+  }
   return 0;
 }
 

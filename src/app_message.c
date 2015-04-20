@@ -137,9 +137,10 @@ error_out:
 void applyAttributesWrapper(uint32_t tid, DictionaryIterator *rdi) {
   int ret = 0;
   MyTextLayer *mtl = NULL;
+  MyWindow *mw = NULL;
   
-  RCC(getTextLayerFromRemote(rdi, &mtl, NULL));
-  RCC(myTextLayerSetAttributes(mtl, rdi));
+  RCC(getTextLayerFromRemote(rdi, &mtl, &mw));
+  RCC(myTextLayerSetAttributes(mw, mtl, rdi));
   
 error_out:
   send_result(tid, ret);
@@ -217,10 +218,26 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 }
 
 void init(void) {
+  int rh;
+  MyWindow *mw;
+  
   init_windows();
 	
-  background_window = window_create();
-  window_stack_push(background_window, false);
+  // Need to create a window to keep the app from
+  // exiting, so we might as wll make it available.
+  rh = allocWindow();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "root window handle = %d", rh);
+  if (rh != 0) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window handle %d != 0", rh);
+  }
+  mw = getWindowByID(rh);
+  if (mw == NULL) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window null");
+  }
+  
+  pushWindow(mw);
+  
+  
   
 	// Register AppMessage handlers
 	app_message_register_inbox_received(in_received_handler); 
