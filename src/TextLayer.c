@@ -17,8 +17,7 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
     text_layer_set_text(mtl->tl, mtl->text);
   }
 
-  // Improve the layout to be more like a watchface
-  text_layer_set_font(mtl->tl, mtl->font);
+  //text_layer_set_font(mtl->tl, mtl->font);
   text_layer_set_text_alignment(mtl->tl, mtl->alignment);
   
   layer_add_child(window_get_root_layer(mw->w), text_layer_get_layer(mtl->tl));
@@ -82,7 +81,19 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
             free(mtl->text);
           }
           mtl->text = strdup(t->value->cstring);
+        } else if (t->type == TUPLE_BYTE_ARRAY) {
+          if (mtl->text != NULL) {
+            free(mtl->text);
+          }
+          mtl->text = malloc (t->length + 1);
+          if (mtl->text == NULL) {
+            return -ENOMEM;
+          }
+          
+          memcpy (mtl->text, t->value->data, t->length);
+          mtl->text[t->length] = 0;
         }
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "Updated text to %s", mtl->text);
       break;
       
       case KEY_ATTRIBUTE_FONT:
@@ -122,13 +133,18 @@ myTextLayerSetAttributes(MyTextLayer *mtl, DictionaryIterator *attr) {
 }
 
 MyTextLayer *getTextLayerByID(MyWindow *mw, int id) {
+  MyTextLayer *mtl;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in getTextLayerByID: %p, %d", mw, id);
   if (id < 0 || mw == NULL) {
     return NULL;
   }
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In GetTxtLayerByID, count = %d", mw->myTextLayers->count);
   if (id >= mw->myTextLayers->count) {
     return NULL;
   }
   
-  return (MyTextLayer *)(mw->myTextLayers->objects[id]);
+  mtl = (MyTextLayer *)(mw->myTextLayers->objects[id]);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "GetTextLayerByID, returning %p", mtl);
+  return mtl;
 }

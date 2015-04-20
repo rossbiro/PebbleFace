@@ -2,6 +2,8 @@
 #include "Window.h"
 #include "Protocol.h"
 #include "TextLayer.h"
+  
+static Window *background_window;
 
 // Write message to buffer & send
 void send_start_message() {
@@ -12,6 +14,8 @@ void send_start_message() {
   dict_write_uint8(iter, KEY_API_VERSION, API_VERSION);
 	
 	dict_write_end(iter);
+  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "sending start message.");
   app_message_outbox_send();
 }
 
@@ -25,6 +29,8 @@ void send_err(uint32_t tid, int res) {
   dict_write_uint32(iter, KEY_ERROR_CODE, -res);
 	
 	dict_write_end(iter);
+  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Sending error code %d", res);
   app_message_outbox_send();
   
 }
@@ -44,6 +50,9 @@ void send_handle(uint32_t tid, int key, int res) {
   dict_write_uint32(iter, key, res);
 	
 	dict_write_end(iter);
+  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "sending handle type %d: %d", key, res);
+  
   app_message_outbox_send();
   
 }
@@ -65,12 +74,13 @@ static int getWindowFromRemote(DictionaryIterator *rdi, MyWindow **mw /* output 
   }
   
   wh = (int) t->value->uint32;
-  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Got Window Handle %d", wh);
   *mw = getWindowByID(wh);
   if (*mw == NULL) {
     return -ENOWINDOW;
   }
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Found Window %p", *mw);
   return 0;
 }
 
@@ -160,17 +170,22 @@ struct {
 };
 
 void callGlobal(uint32_t tid, DictionaryIterator *received) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "In callGlobal");
+  
   Tuple *tuple = dict_find(received, KEY_METHOD_ID);
   if (tuple != NULL || tuple->type != TUPLE_UINT) {
     int gf = (int)tuple->value->uint32;
+    APP_LOG(APP_LOG_LEVEL_DEBUG," callGlobal gf = %d", gf);
     for (int i = 0; remoteCalls[i].id != FUNC_NO_FUNC; ++i) {
       if (remoteCalls[i].id == gf) {
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "Found Func: %d", i);
         remoteCalls[i].rcw(tid, received);
         return;
       }
     }
   }
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "callGlobal returining -EINVALID_OP");
   send_err(tid, -EINVALID_OP);
   return;  
 }
@@ -179,13 +194,16 @@ void callGlobal(uint32_t tid, DictionaryIterator *received) {
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
 
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message:");
   tuple = dict_find(received, KEY_TRANSACTION_ID);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "dict[%d] = %p", KEY_TRANSACTION_ID, tuple);
   if (tuple == NULL) {
     send_err(0, -EINVALID_TRANSACTION);
     return;
   }
   
   uint32_t tid = tuple->value->uint32;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message: tid = %d", (int)tid);
   callGlobal(tid, received);
 }
 
@@ -195,11 +213,15 @@ static void in_dropped_handler(AppMessageResult reason, void *context) {
 
 // Called when PebbleKitJS does not acknowledge receipt of a message
 static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "out_failed_handler: %d", reason);
 }
 
 void init(void) {
   init_windows();
 	
+  background_window = window_create();
+  window_stack_push(background_window, false);
+  
 	// Register AppMessage handlers
 	app_message_register_inbox_received(in_received_handler); 
 	app_message_register_inbox_dropped(in_dropped_handler); 
@@ -207,16 +229,20 @@ void init(void) {
 		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 	
-	send_start_message();
+	//send_start_message();
 }
 
 void deinit(void) {
 	app_message_deregister_callbacks();
+  window_destroy(background_window);
   deinit_windows();
 }
 
 int main( void ) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "PebbleRemote: in Main");
 	init();
-	app_event_loop();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "PebbleRemote: Done with init");
+  app_event_loop();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "PebbleRemote: Calling deinit");
 	deinit();
 }

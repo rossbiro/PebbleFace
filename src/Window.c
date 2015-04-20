@@ -79,16 +79,22 @@ int allocWindow() {
       .unload = window_unload
     });
   
-    return 0;
+    
+  
+    return allocObjects(myWindows, mw);
 }
 
 void pushWindow(MyWindow *mw) {
   // Show the Window on the watch, with animated=true
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "pushWindow mw=%p window=%p", mw, mw == NULL ? NULL : mw->w);
   window_stack_push(mw->w, true);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Pushed window.");
 }
 
 MyWindow *getWindowByID(int id) {
-  if (id < 0 || myWindows == NULL || myWindows->count >= id) {
+  if (id < 0 || myWindows == NULL || myWindows->count <= id) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Failed to find window at %d, count = %d, myWindows = %p",
+           id, myWindows == NULL ? -1 : myWindows->count, myWindows);
     return NULL;
   }
   

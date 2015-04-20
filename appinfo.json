@@ -1,8 +1,5 @@
 {
-    "appKeys": {
-        "message": 1,
-        "status": 0
-    },
+    "appKeys": {},
     "capabilities": [
         ""
     ],
@@ -14,7 +11,7 @@
     },
     "sdkVersion": "2",
     "shortName": "RemoteScreen",
-    "uuid": "52ad4b02-48c1-4daf-b5cf-2c7a10030c42",
+    "uuid": "9312d524-6e77-47e4-96ed-e67bd11ce1d5",
     "versionCode": 1,
     "versionLabel": "1.0",
     "watchapp": {
