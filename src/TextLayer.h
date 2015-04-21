@@ -12,6 +12,7 @@ typedef struct MyTextLayer {
   GColor bg;
   GFont font;
   char *text;
+  bool font_loaded;
   GTextAlignment alignment;
   struct MyWindow *parent;
 } MyTextLayer;

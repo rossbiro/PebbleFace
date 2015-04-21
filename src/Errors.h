@@ -9,6 +9,7 @@ enum ErrorCodes {
     ENOLAYER,
     EINVALID_OP,
     EINVALID_TRANSACTION,
+    ENOFONT,
 };
 
 #ifndef RCC

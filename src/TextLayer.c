@@ -18,7 +18,7 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
     text_layer_set_text(mtl->tl, mtl->text);
   }
 
-  //text_layer_set_font(mtl->tl, mtl->font);
+  text_layer_set_font(mtl->tl, mtl->font);
   text_layer_set_text_alignment(mtl->tl, mtl->alignment);
   
   layer_mark_dirty(text_layer_get_layer(mtl->tl));
@@ -36,9 +36,10 @@ int createTextLayer(MyWindow *mw) {
     return -ENOMEM;
   }
   
-  mtl->font = fonts_get_system_font("FONT_KEY_BITHAM_14_BOLD");
-  mtl->fg = GColorWhite;
-  mtl->bg = GColorBlack;
+  mtl->font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+  mtl->font_loaded = false;
+  mtl->fg = GColorBlack;
+  mtl->bg = GColorWhite;
   mtl->text = NULL;
   mtl->alignment = GTextAlignmentLeft;
   mtl->rect = GRect(0, 55, 144, 50);
@@ -56,6 +57,11 @@ void myTextLayerDestructor(void *vptr) {
   if (mtl->tl != NULL) {
     text_layer_destroy(mtl->tl);
     mtl->tl = NULL;
+  }
+  
+  if (mtl->font_loaded) {
+    fonts_unload_custom_font(mtl->font);
+    mtl->font_loaded = false;
   }
 }
 
@@ -102,9 +108,35 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
       
       case KEY_ATTRIBUTE_FONT:
         if (t->type == TUPLE_CSTRING) {
+          if (mtl->font_loaded) {
+            fonts_unload_custom_font(mtl->font);
+            mtl->font_loaded = false;
+          }
           mtl->font = fonts_get_system_font(t->value->cstring);
           changed = true;
-        } // Int could be a resource.  But then we need to unload.
+        } else if (t->type == TUPLE_UINT) {
+          if (mtl->font_loaded) {
+            fonts_unload_custom_font(mtl->font);
+            mtl->font_loaded = false;
+          }
+          mtl->font = fonts_load_custom_font(resource_get_handle(t->value->uint32));
+          if (mtl->font != NULL) {
+            mtl->font_loaded = true;
+          } else {
+            return -ENOFONT;
+          }
+          changed = true;
+        } else if (t->type == TUPLE_BYTE_ARRAY) {
+          char font_name[t->length + 1];
+          memcpy (font_name, t->value->data, t->length);
+          font_name[t->length] = 0;
+          if (mtl->font_loaded) {
+            fonts_unload_custom_font(mtl->font);
+            mtl->font_loaded = false;
+          }
+          mtl->font = fonts_get_system_font(font_name);
+          changed = true;
+        }
         break;
       
       case KEY_ATTRIBUTE_FG_COLOR:
