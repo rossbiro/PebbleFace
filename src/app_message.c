@@ -2,40 +2,33 @@
 #include "Window.h"
 #include "Protocol.h"
 #include "TextLayer.h"
-  
-static Window *background_window;
 
-// Write message to buffer & send
-void send_start_message() {
-	DictionaryIterator *iter;
+
+DictionaryIterator *begin_message(int status, uint32_t tid) {
+  DictionaryIterator *iter;
 	
 	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, KEY_STATUS, STATUS_STARTED);
   dict_write_uint8(iter, KEY_API_VERSION, API_VERSION);
-	
-	dict_write_end(iter);
-  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "sending start message.");
-  app_message_outbox_send();
-}
-
-void send_err(uint32_t tid, int res) {
-  DictionaryIterator *iter;
-
-  app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, KEY_STATUS, STATUS_ERR);
-  dict_write_uint16(iter, KEY_API_VERSION, API_VERSION);
+ 	dict_write_uint8(iter, KEY_STATUS, status); 
   dict_write_uint32(iter, KEY_TRANSACTION_ID, tid);
+  return iter;
+
+}
+
+void send_message(DictionaryIterator *iter) {
+ 	dict_write_end(iter);
+  app_message_outbox_send(); 
+}
+
+
+static void send_err(uint32_t tid, int res) {
+  DictionaryIterator *iter = begin_message(STATUS_ERR, tid);
   dict_write_uint32(iter, KEY_ERROR_CODE, -res);
-	
-	dict_write_end(iter);
-  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Sending error code %d", res);
-  app_message_outbox_send();
+	send_message(iter);
   
 }
 
-void send_handle(uint32_t tid, int key, int res) {
+static void send_handle(uint32_t tid, int key, int res) {
   DictionaryIterator *iter;
   
   if (res < 0) {
@@ -43,21 +36,12 @@ void send_handle(uint32_t tid, int key, int res) {
     return;
   }
 
-	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, KEY_STATUS, STATUS_OK);
-  dict_write_uint16(iter, KEY_API_VERSION, API_VERSION);
-  dict_write_uint32(iter, KEY_TRANSACTION_ID, tid);
+	iter = begin_message(STATUS_OK, tid);
   dict_write_uint32(iter, key, res);
-	
-	dict_write_end(iter);
-  
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "sending handle type %d: %d", key, res);
-  
-  app_message_outbox_send();
-  
+  send_message(iter);	
 }
 
-void send_result(uint32_t tid, int res) {
+static void send_result(uint32_t tid, int res) {
   send_handle (tid, KEY_RETURN_VALUE, res);
 }
 
@@ -115,13 +99,13 @@ error_out:
   return 0;
 }
 
-void newWindowWrapper(uint32_t tid, DictionaryIterator *rdi) {
+void newWindowWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
   // No args necessary.  So we just do our thing.
   int wh = allocWindow();
   send_handle(tid, KEY_WINDOW_ID, wh);
 }
 
-void newTextLayerWrapper(uint32_t tid, DictionaryIterator *rdi) {
+void newTextLayerWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
   // We need to get a window handle and covert that to a window
   // before we can create a new text layer.
   MyWindow *mw;
@@ -134,7 +118,7 @@ error_out:
   send_handle(tid, KEY_TEXT_LAYER_ID, ret);
 }
 
-void applyAttributesWrapper(uint32_t tid, DictionaryIterator *rdi) {
+void applyAttributesWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
   int ret = 0;
   MyTextLayer *mtl = NULL;
   MyWindow *mw = NULL;
@@ -146,41 +130,47 @@ error_out:
   send_result(tid, ret);
 }
 
-void pushWindowWrapper(uint32_t tid, DictionaryIterator *rdi) {
+
+typedef int (*window_func)(MyWindow *, DictionaryIterator *rdi);
+
+void call_window_func(uint32_t tid, DictionaryIterator *rdi, void *vfunc) {
   int ret;
   MyWindow *mw;
+  window_func func = (window_func) vfunc;
   
   RCC(getWindowFromRemote(rdi, &mw));
-  pushWindow(mw);
+  RCC(func(mw, rdi));
   
 error_out:
   send_result(tid, ret);
 }
 
-typedef void (*RemoteCallWrapper) (uint32_t, DictionaryIterator *);
+typedef void (*RemoteCallWrapper) (uint32_t, DictionaryIterator *, void *data);
 
 struct { 
   RemoteFuncs id;
   RemoteCallWrapper rcw;
+  void *arg;
 } remoteCalls[] = {
-  {FUNC_NEW_WINDOW, newWindowWrapper},
-  {FUNC_NEW_TEXT_LAYER, newTextLayerWrapper},
-  {FUNC_APPLY_ATTRIBUTES, applyAttributesWrapper},
-  {FUNC_PUSH_WINDOW, pushWindowWrapper},
-  {FUNC_NO_FUNC, NULL},
+  {FUNC_NEW_WINDOW, newWindowWrapper, NULL},
+  {FUNC_NEW_TEXT_LAYER, newTextLayerWrapper, NULL},
+  {FUNC_APPLY_ATTRIBUTES, applyAttributesWrapper, NULL},
+  {FUNC_PUSH_WINDOW, call_window_func, (void *)pushWindow },
+  {FUNC_REQUEST_CLICKS, call_window_func, (void *)requestClicks },
+  {FUNC_NO_FUNC, NULL, NULL},
 };
 
 void callGlobal(uint32_t tid, DictionaryIterator *received) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "In callGlobal");
   
   Tuple *tuple = dict_find(received, KEY_METHOD_ID);
-  if (tuple != NULL || tuple->type != TUPLE_UINT) {
+  if (tuple != NULL && tuple->type == TUPLE_UINT) {
     int gf = (int)tuple->value->uint32;
     APP_LOG(APP_LOG_LEVEL_DEBUG," callGlobal gf = %d", gf);
     for (int i = 0; remoteCalls[i].id != FUNC_NO_FUNC; ++i) {
       if (remoteCalls[i].id == gf) {
         APP_LOG(APP_LOG_LEVEL_DEBUG, "Found Func: %d", i);
-        remoteCalls[i].rcw(tid, received);
+        remoteCalls[i].rcw(tid, received, remoteCalls[i].arg);
         return;
       }
     }
@@ -235,7 +225,7 @@ void init(void) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Root window null");
   }
   
-  pushWindow(mw);
+  pushWindow(mw, NULL);
   
   
   
@@ -251,7 +241,6 @@ void init(void) {
 
 void deinit(void) {
 	app_message_deregister_callbacks();
-  window_destroy(background_window);
   deinit_windows();
 }
 

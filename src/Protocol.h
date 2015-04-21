@@ -12,6 +12,7 @@ typedef enum RemoteFuncs {
   FUNC_NEW_TEXT_LAYER,
   FUNC_APPLY_ATTRIBUTES,
   FUNC_PUSH_WINDOW,
+  FUNC_REQUEST_CLICKS,
 } RemoteFuncs;
 
 enum Keys {
@@ -29,6 +30,17 @@ enum Keys {
   KEY_ATTRIBUTE_TEXT,
   KEY_ATTRIBUTE_ALIGNMENT,
   KEY_ATTRIBUTE_RECT,
+  KEY_BUTTON_ID,
+  KEY_CLICK,
+  KEY_BUTTON_0,
+  KEY_BUTTON_1,
+  KEY_BUTTON_2,
+  KEY_BUTTON_3,
+  KEY_BUTTON_4,
+  KEY_BUTTON_5,
+  KEY_BUTTON_6,
+  KEY_BUTTON_7, // reserve space for 8 buttons, although there are only 4 right now.
+
 };
 
 enum Status {
@@ -38,5 +50,20 @@ enum Status {
   STATUS_STOPPED,
 };
 
+#define CLICK_DATA(r, c, b) (((r)?1:0) << 16 | (c << 8) | (b) )
+#define LONG_CLICK_DATA(t, r,c,b) ((t) | ((r)?1:0) << 16 | (c << 8) | (b) )
+  
+#define BUTTON_WANT_SINGLE_CLICK (1 << 0)
+#define BUTTON_WANT_REPEATED_MASK (0xFFF << 8)
+#define BUTTON_WANT_MULTI_MASK (0xF << 1)
+#define BUTTON_LONG_CLICK_MASK (0xFFF << 20)
+#define BUTTON_LONG_CLICK_DELAY(t) (((t) >> 20) & 0xFFF)
+#define BUTTON_REPEAT_DELAY(t) (((t) >> 8) & 0xFFF)
+#define BUTTON_MULTI_MAX(t) (((t) > 1) & 0xF)
+#define LONG_CLICK_DOWN (1<<17)
+#define LONG_CLICK_UP (1<<18)
 
+DictionaryIterator *begin_message(int status, uint32_t tid);
+void send_message(DictionaryIterator *iter);
+  
 #endif
