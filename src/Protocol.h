@@ -39,8 +39,11 @@ enum Keys {
   KEY_BUTTON_5,
   KEY_BUTTON_6,
   KEY_BUTTON_7, // reserve space for 8 buttons, although there are only 4 right now.
-
+  KEY_ID,
 };
+
+#define ROOT_WINDOW_ID 1
+#define ROOT_WINDOW_HANDLE 0
 
 enum Status {
   STATUS_OK = 0,

@@ -4,9 +4,11 @@
 #include "Object.h"
 #include "TextLayer.h"
 #include "Protocol.h"
+#include "Util.h"
   
 typedef struct MyWindow {
   Window *w;
+  uint32_t id;
   struct objects *myTextLayers;
   uint32_t button_config[NUM_BUTTONS];
 } MyWindow;

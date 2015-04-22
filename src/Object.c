@@ -56,5 +56,6 @@ void freeObjects(objects *o) {
       o->objects[i] = NULL;
     }
   }
+  free(o->objects);
   free(o);
 }

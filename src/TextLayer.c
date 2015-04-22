@@ -30,7 +30,8 @@ void myTextLayerUnload(MyWindow *mw, MyTextLayer *mtl) {
   mtl->tl = NULL;
 }
 
-int createTextLayer(MyWindow *mw) {
+int createTextLayer(MyWindow *mw, DictionaryIterator *rdi) {
+  Tuple *t;
   MyTextLayer *mtl = malloc(sizeof(*mtl));
   if (mtl == NULL) {
     return -ENOMEM;
@@ -43,6 +44,10 @@ int createTextLayer(MyWindow *mw) {
   mtl->text = NULL;
   mtl->alignment = GTextAlignmentLeft;
   mtl->rect = GRect(0, 55, 144, 50);
+  
+  t = dict_find(rdi, KEY_ID);
+ 
+  mtl->id = tuple_get_uint32(t);
   
   return allocObjects(mw->myTextLayers, mtl);
 }
@@ -63,6 +68,8 @@ void myTextLayerDestructor(void *vptr) {
     fonts_unload_custom_font(mtl->font);
     mtl->font_loaded = false;
   }
+  
+  free(mtl);
 }
 
 // Call must make sure the array is 8 bytes.
@@ -119,7 +126,7 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
             fonts_unload_custom_font(mtl->font);
             mtl->font_loaded = false;
           }
-          mtl->font = fonts_load_custom_font(resource_get_handle(t->value->uint32));
+          mtl->font = fonts_load_custom_font(resource_get_handle(tuple_get_uint32(t)));
           if (mtl->font != NULL) {
             mtl->font_loaded = true;
           } else {
@@ -141,21 +148,21 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
       
       case KEY_ATTRIBUTE_FG_COLOR:
         if (t->type == TUPLE_UINT) {
-          mtl->fg = t->value->uint32; 
+          mtl->fg = tuple_get_uint32(t);
           changed = true;
         }
       break;
       
       case KEY_ATTRIBUTE_BG_COLOR:
         if (t->type == TUPLE_UINT) {
-          mtl->bg = t->value->uint32; 
+          mtl->bg = tuple_get_uint32(t); 
           changed = true;
         }
       break;
       
       case KEY_ATTRIBUTE_ALIGNMENT:
         if (t->type == TUPLE_UINT) {
-          mtl->alignment = t->value->uint32;
+          mtl->alignment = tuple_get_uint32(t);
           changed = true;
         }
       break;

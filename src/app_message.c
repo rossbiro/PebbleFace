@@ -100,41 +100,29 @@ error_out:
   return 0;
 }
 
-void newWindowWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
-  // No args necessary.  So we just do our thing.
-  int wh = allocWindow();
-  send_handle(tid, KEY_WINDOW_ID, wh);
+typedef int (*global_func)(DictionaryIterator *rdi);
+typedef int (*window_func)(MyWindow *, DictionaryIterator *rdi);
+typedef int (*text_layer_func)(MyWindow *, MyTextLayer *, DictionaryIterator *rdi);
+
+static void call_global_func(uint32_t tid, DictionaryIterator *rdi, void *vfunc) {
+  global_func func = (global_func)vfunc;
+  send_handle(tid, KEY_RETURN_VALUE, func(rdi));
 }
 
-void newTextLayerWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
-  // We need to get a window handle and covert that to a window
-  // before we can create a new text layer.
-  MyWindow *mw;
-  int ret=0;
-  
-  RCC(getWindowFromRemote(rdi, &mw)); // mw is output
-
-  ret = createTextLayer(mw);
-error_out:
-  send_handle(tid, KEY_TEXT_LAYER_ID, ret);
-}
-
-void applyAttributesWrapper(uint32_t tid, DictionaryIterator *rdi, void *unused) {
+static void call_text_layer_func(uint32_t tid, DictionaryIterator *rdi, void *vfunc) {
   int ret = 0;
+  text_layer_func func = (text_layer_func)vfunc;
   MyTextLayer *mtl = NULL;
   MyWindow *mw = NULL;
   
   RCC(getTextLayerFromRemote(rdi, &mtl, &mw));
-  RCC(myTextLayerSetAttributes(mw, mtl, rdi));
+  RCC(func(mw, mtl, rdi));
   
 error_out:
   send_result(tid, ret);
 }
 
-
-typedef int (*window_func)(MyWindow *, DictionaryIterator *rdi);
-
-void call_window_func(uint32_t tid, DictionaryIterator *rdi, void *vfunc) {
+static void call_window_func(uint32_t tid, DictionaryIterator *rdi, void *vfunc) {
   int ret;
   MyWindow *mw;
   window_func func = (window_func) vfunc;
@@ -146,6 +134,7 @@ error_out:
   send_result(tid, ret);
 }
 
+
 typedef void (*RemoteCallWrapper) (uint32_t, DictionaryIterator *, void *data);
 
 struct { 
@@ -153,9 +142,9 @@ struct {
   RemoteCallWrapper rcw;
   void *arg;
 } remoteCalls[] = {
-  {FUNC_NEW_WINDOW, newWindowWrapper, NULL},
-  {FUNC_NEW_TEXT_LAYER, newTextLayerWrapper, NULL},
-  {FUNC_APPLY_ATTRIBUTES, applyAttributesWrapper, NULL},
+  {FUNC_NEW_WINDOW, call_global_func, (void *)allocWindow},
+  {FUNC_NEW_TEXT_LAYER, call_window_func, (void *)createTextLayer},
+  {FUNC_APPLY_ATTRIBUTES, call_text_layer_func, (void *)myTextLayerSetAttributes},
   {FUNC_PUSH_WINDOW, call_window_func, (void *)pushWindow },
   {FUNC_REQUEST_CLICKS, call_window_func, (void *)requestClicks },
   {FUNC_NO_FUNC, NULL, NULL},
@@ -216,7 +205,7 @@ void init(void) {
 	
   // Need to create a window to keep the app from
   // exiting, so we might as wll make it available.
-  rh = allocWindow();
+  rh = allocWindow(NULL);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "root window handle = %d", rh);
   if (rh != 0) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "Root window handle %d != 0", rh);

@@ -14,6 +14,8 @@ static void MyWindowDestructor(void *vptr) {
     window_destroy(mw->w);
     mw->w = NULL;
   }
+  
+  free(mw);
 }
 
 static MyWindow *findMyWindow(Window *w) {
@@ -53,7 +55,9 @@ void deinit_windows() {
   }
 }
 
-int allocWindow() {
+int allocWindow(DictionaryIterator *rdi) {
+    Tuple *t;
+  
     MyWindow *mw = malloc(sizeof(MyWindow));
     if (mw == NULL) {
       return -ENOMEM;
@@ -68,6 +72,7 @@ int allocWindow() {
       mw->button_config[i] = 0;
     }
   
+    mw->id = 0;
     mw->w = window_create();
     if (mw->w == NULL) {
       freeObjects(mw->myTextLayers);
@@ -83,6 +88,14 @@ int allocWindow() {
       .unload = window_unload
     });
   
+    if (rdi != NULL) {
+      t = dict_find(rdi, KEY_ID);
+      if (t != NULL && t->type == TUPLE_UINT ) {
+        mw->id = tuple_get_uint32(t);
+      }
+    } else {
+      mw->id = ROOT_WINDOW_ID;
+    }
     return allocObjects(myWindows, mw);
 }
 
@@ -157,7 +170,7 @@ int requestClicks(MyWindow *mw, DictionaryIterator *rdi) {
       if (t == NULL || t->type != TUPLE_UINT || t->length != 4) {
         continue;
       }
-      mw->button_config[i] = t->value->uint32;
+      mw->button_config[i] = tuple_get_uint32(t);
       APP_LOG(APP_LOG_LEVEL_DEBUG, "inRequest button=%d config=%08X", i, (unsigned int)mw->button_config[i]);
     }
     window_set_click_config_provider_with_context(mw->w, click_config_provider, mw);

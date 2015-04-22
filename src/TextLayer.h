@@ -6,6 +6,7 @@
 struct MyWindow;
   
 typedef struct MyTextLayer {
+  uint32_t id;
   TextLayer *tl;
   GRect rect;
   GColor fg;
@@ -20,7 +21,7 @@ typedef struct MyTextLayer {
 void text_layer_load(struct MyWindow *, MyTextLayer *);
 void text_layer_unload(struct MyWindow *, MyTextLayer *);
 
-int createTextLayer(struct MyWindow *mw);
+int createTextLayer(struct MyWindow *mw, DictionaryIterator *rdi);
 int myTextLayerSetAttributes(struct MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *attr);
 void myTextLayerDestructor(void *);
 void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
