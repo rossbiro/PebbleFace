@@ -97,6 +97,7 @@ void onClick(ClickRecognizerRef recognizer, void *context) {
   uint8_t count =  click_number_of_clicks_counted(recognizer);
   uint8_t button = click_recognizer_get_button_id(recognizer);
   bool repeating = click_recognizer_is_repeating(recognizer);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "onClick count=%d button=%d repeating=%d", count, button, repeating);
   DictionaryIterator *di = begin_message(STATUS_OK, timestamp());
   dict_write_uint32(di, KEY_CLICK, CLICK_DATA(repeating, count, button));
   send_message(di);
@@ -150,12 +151,14 @@ int pushWindow(MyWindow *mw, DictionaryIterator *rdi) {
 }
 
 int requestClicks(MyWindow *mw, DictionaryIterator *rdi) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in requestClicks");
     for (int i = 0; i < NUM_BUTTONS; ++i) {
       Tuple *t =  dict_find(rdi, KEY_BUTTON_0 + i);
       if (t == NULL || t->type != TUPLE_UINT || t->length != 4) {
         continue;
       }
       mw->button_config[i] = t->value->uint32;
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "inRequest button=%d config=%08X", i, (unsigned int)mw->button_config[i]);
     }
     window_set_click_config_provider_with_context(mw->w, click_config_provider, mw);
     return 0;

@@ -18,6 +18,7 @@ DictionaryIterator *begin_message(int status, uint32_t tid) {
 void send_message(DictionaryIterator *iter) {
  	dict_write_end(iter);
   app_message_outbox_send(); 
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "message sent");
 }
 
 
