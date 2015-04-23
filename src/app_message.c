@@ -60,7 +60,7 @@ static int getWindowFromRemote(DictionaryIterator *rdi, MyWindow **mw /* output 
   
   wh = (int) t->value->uint32;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "Got Window Handle %d", wh);
-  *mw = getWindowByID(wh);
+  *mw = getWindowByHandle(wh);
   if (*mw == NULL) {
     return -ENOWINDOW;
   }
@@ -91,7 +91,7 @@ static int getTextLayerFromRemote(DictionaryIterator *rdi, MyTextLayer **mtl, My
     return 0;
   }
   
-  *mtl = getTextLayerByID(lmw, tlh);
+  *mtl = getTextLayerByHandle(lmw, tlh);
   
   if (*mtl == NULL) {
     return -ENOLAYER;
@@ -147,6 +147,10 @@ struct {
   {FUNC_APPLY_ATTRIBUTES, call_text_layer_func, (void *)myTextLayerSetAttributes},
   {FUNC_PUSH_WINDOW, call_window_func, (void *)pushWindow },
   {FUNC_REQUEST_CLICKS, call_window_func, (void *)requestClicks },
+  {FUNC_GET_DICTIONARY_BY_ID, call_global_func, (void *)getWindowByID},
+  {FUNC_GET_TEXT_LAYER_BY_ID, call_window_func, (void *)getTextLayerByID},
+  {FUNC_CLEAR_WINDOW, call_window_func, (void *)clearWindow},
+  {FUNC_RESET_WINDOWS, call_global_func, (void *)resetWindows},
   {FUNC_NO_FUNC, NULL, NULL},
 };
 
@@ -198,26 +202,7 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 }
 
 void init(void) {
-  int rh;
-  MyWindow *mw;
-  
-  init_windows();
-	
-  // Need to create a window to keep the app from
-  // exiting, so we might as wll make it available.
-  rh = allocWindow(NULL);
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "root window handle = %d", rh);
-  if (rh != 0) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window handle %d != 0", rh);
-  }
-  mw = getWindowByID(rh);
-  if (mw == NULL) {
-    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window null");
-  }
-  
-  pushWindow(mw, NULL);
-  
-  
+  resetWindows(NULL);
   
 	// Register AppMessage handlers
 	app_message_register_inbox_received(in_received_handler); 

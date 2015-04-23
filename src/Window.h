@@ -15,13 +15,15 @@ typedef struct MyWindow {
 
 extern struct objects *myWindows;
 
-int init_windows();
 void deinit_windows();
 int allocWindow();
-MyWindow *getWindowByID(int id);
+MyWindow *getWindowByHandle(int handle);
 
 // The Window Functions called remotely.
 int pushWindow(MyWindow *, DictionaryIterator *);
 int requestClicks(MyWindow *, DictionaryIterator *);
+int getWindowByID(DictionaryIterator *);
+int resetWindows(DictionaryIterator *);
+int clearWindow(MyWindow *mw, DictionaryIterator *);
   
 #endif

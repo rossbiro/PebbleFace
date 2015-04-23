@@ -4,6 +4,8 @@
 #include <pebble.h>
 
 struct MyWindow;
+
+typedef struct MyWindow MyWindow;
   
 typedef struct MyTextLayer {
   uint32_t id;
@@ -21,11 +23,14 @@ typedef struct MyTextLayer {
 void text_layer_load(struct MyWindow *, MyTextLayer *);
 void text_layer_unload(struct MyWindow *, MyTextLayer *);
 
-int createTextLayer(struct MyWindow *mw, DictionaryIterator *rdi);
-int myTextLayerSetAttributes(struct MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *attr);
 void myTextLayerDestructor(void *);
 void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
 void myTextLayerUnload(struct MyWindow *mw, MyTextLayer *mtl);
-MyTextLayer *getTextLayerByID(struct MyWindow *mw, int id);
+MyTextLayer *getTextLayerByHandle(struct MyWindow *mw, int id);
+
+// Remote Calls
+int getTextLayerByID(struct MyWindow *, DictionaryIterator *);
+int createTextLayer(struct MyWindow *mw, DictionaryIterator *rdi);
+int myTextLayerSetAttributes(struct MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *attr);
 
 #endif //REMOTESCREEN_TEXTLAYER_H_

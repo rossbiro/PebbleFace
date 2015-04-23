@@ -43,8 +43,35 @@ static void window_unload(Window *w) {
   }
 }
 
-int init_windows() {
+int clearWindow(MyWindow *mw, DictionaryIterator *rdi) {
+  freeObjects(mw->myTextLayers);
+  mw->myTextLayers = NULL;
+  return 0;
+}
+
+int resetWindows(DictionaryIterator *rdi) {
+  MyWindow *mw;
+  int rh;
+  
+  if (myWindows != NULL) {
+    freeObjects(myWindows);
+  }
   myWindows = createObjects(MyWindowDestructor);
+  
+  // Need to create a window to keep the app from
+  // exiting, so we might as wll make it available.
+  rh = allocWindow(NULL);
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "root window handle = %d", rh);
+  if (rh != 0) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window handle %d != 0", rh);
+  }
+  mw = getWindowByHandle(rh);
+  if (mw == NULL) {
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Root window null");
+  }
+  
+  pushWindow(mw, rdi);
+  
   return 0;
 }
 
@@ -177,7 +204,7 @@ int requestClicks(MyWindow *mw, DictionaryIterator *rdi) {
     return 0;
 }
 
-MyWindow *getWindowByID(int id) {
+MyWindow *getWindowByHandle(int id) {
   if (id < 0 || myWindows == NULL || myWindows->count <= id) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "Failed to find window at %d, count = %d, myWindows = %p",
            id, myWindows == NULL ? -1 : myWindows->count, myWindows);
@@ -186,3 +213,26 @@ MyWindow *getWindowByID(int id) {
   
   return (MyWindow *)(myWindows->objects[id]);
 }
+
+
+int getWindowByID(DictionaryIterator *rdi) {
+  uint32_t id;
+  Tuple *t = dict_find(rdi, KEY_ID);
+  if (t == NULL) {
+    return -ENOWINDOW;
+  }
+  
+  id = tuple_get_uint32(t);
+  
+  if (id == 0 || myWindows == NULL) {
+    return -ENOWINDOW;
+  }
+  
+  for (int i = 0; i < myWindows->count; ++i) {
+    MyWindow *mw = (MyWindow *)(myWindows->objects[i]);
+    if (mw != NULL && mw->id == id) {
+        return i;    
+    }
+  }
+  return -ENOWINDOW;
+ }

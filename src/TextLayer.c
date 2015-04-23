@@ -183,7 +183,7 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
   return 0;
 }
 
-MyTextLayer *getTextLayerByID(MyWindow *mw, int id) {
+MyTextLayer *getTextLayerByHandle(MyWindow *mw, int id) {
   MyTextLayer *mtl;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "in getTextLayerByID: %p, %d", mw, id);
   if (id < 0 || mw == NULL) {
@@ -199,3 +199,25 @@ MyTextLayer *getTextLayerByID(MyWindow *mw, int id) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "GetTextLayerByID, returning %p", mtl);
   return mtl;
 }
+
+int getTextLayerByID(MyWindow *mw, DictionaryIterator *rdi) {
+  uint32_t id;
+  Tuple *t = dict_find(rdi, KEY_ID);
+  if (t == NULL) {
+    return -ENOLAYER;
+  }
+  
+  id = tuple_get_uint32(t);
+  
+  if (id == 0 || mw->myTextLayers == NULL) {
+    return -ENOLAYER;
+  }
+  
+  for (int i = 0; i < mw->myTextLayers->count; ++i) {
+    MyTextLayer *mtl = (MyTextLayer *)(mw->myTextLayers->objects[i]);
+    if (mtl != NULL && mtl->id == id) {
+        return i;    
+    }
+  }
+  return -ENOLAYER;
+ }
