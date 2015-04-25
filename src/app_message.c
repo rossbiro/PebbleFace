@@ -29,9 +29,26 @@ static void send_err(uint32_t tid, int res) {
   
 }
 
+static void send_start_message() {
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  dict_write_uint8(iter, KEY_API_VERSION, API_VERSION);
+  dict_write_uint8(iter, KEY_STATUS, STATUS_STARTED);
+  send_message(iter);
+}
+
+static void send_stop_message() {
+  DictionaryIterator *iter;
+  app_message_outbox_begin(&iter);
+  dict_write_uint8(iter, KEY_API_VERSION, API_VERSION);
+  dict_write_uint8(iter, KEY_STATUS, STATUS_STOPPED);
+  send_message(iter);
+}
+
 static void send_handle(uint32_t tid, int key, int res) {
   DictionaryIterator *iter;
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "send_handle(%d, %d, %d)", (int)tid, key, res);
   if (res < 0) {
     send_err(tid, res);
     return;
@@ -194,6 +211,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 
 // Called when an incoming message from PebbleKitJS is dropped
 static void in_dropped_handler(AppMessageResult reason, void *context) {	
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "in dropped handler.");
 }
 
 // Called when PebbleKitJS does not acknowledge receipt of a message
@@ -211,10 +229,12 @@ void init(void) {
 		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
 	
-	//send_start_message();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "about to call send_start_message.");
+	send_start_message();
 }
 
 void deinit(void) {
+  send_stop_message();
 	app_message_deregister_callbacks();
   deinit_windows();
 }

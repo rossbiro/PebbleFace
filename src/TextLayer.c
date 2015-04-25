@@ -26,6 +26,7 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
 }
 
 void myTextLayerUnload(MyWindow *mw, MyTextLayer *mtl) {
+  layer_remove_from_parent(text_layer_get_layer(mtl->tl));
   text_layer_destroy(mtl->tl);
   mtl->tl = NULL;
 }
@@ -54,12 +55,9 @@ int createTextLayer(MyWindow *mw, DictionaryIterator *rdi) {
 
 void myTextLayerDestructor(void *vptr) {
   MyTextLayer *mtl = (MyTextLayer *)vptr;
-  if (mtl->text) {
-    free(mtl->text);
-    mtl->text = NULL;
-  }
   
   if (mtl->tl != NULL) {
+    layer_remove_from_parent(text_layer_get_layer(mtl->tl));
     text_layer_destroy(mtl->tl);
     mtl->tl = NULL;
   }
@@ -69,6 +67,10 @@ void myTextLayerDestructor(void *vptr) {
     mtl->font_loaded = false;
   }
   
+  if (mtl->text) {
+    free(mtl->text);
+    mtl->text = NULL;
+  }
   free(mtl);
 }
 

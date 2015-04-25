@@ -11,7 +11,11 @@ static void MyWindowDestructor(void *vptr) {
   }
   
   if (mw->w) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "About to call window_destroy. mw=%p w=%p", mw, mw->w);
+    window_stack_remove(mw->w, false);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Window removed from stack.");
     window_destroy(mw->w);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Window Destroyed.");
     mw->w = NULL;
   }
   
@@ -52,14 +56,22 @@ int clearWindow(MyWindow *mw, DictionaryIterator *rdi) {
 int resetWindows(DictionaryIterator *rdi) {
   MyWindow *mw;
   int rh;
+  objects *tmpWindows;
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "resetWindows");
   
   if (myWindows != NULL) {
-    freeObjects(myWindows);
+    return 0;
   }
+  
+  tmpWindows = myWindows;
+  myWindows = NULL;
+  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "About to create windows structure.");
   myWindows = createObjects(MyWindowDestructor);
   
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "objects created. ");
   // Need to create a window to keep the app from
-  // exiting, so we might as wll make it available.
+  // exiting, so we might as well make it available.
   rh = allocWindow(NULL);
   APP_LOG(APP_LOG_LEVEL_DEBUG, "root window handle = %d", rh);
   if (rh != 0) {
@@ -72,6 +84,10 @@ int resetWindows(DictionaryIterator *rdi) {
   
   pushWindow(mw, rdi);
   
+  if (tmpWindows) {
+    freeObjects(tmpWindows);
+  }
+
   return 0;
 }
 
@@ -219,17 +235,20 @@ int getWindowByID(DictionaryIterator *rdi) {
   uint32_t id;
   Tuple *t = dict_find(rdi, KEY_ID);
   if (t == NULL) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Looking for window without id");
     return -ENOWINDOW;
   }
   
   id = tuple_get_uint32(t);
-  
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Looking for window %d", (int)id);
   if (id == 0 || myWindows == NULL) {
     return -ENOWINDOW;
   }
   
   for (int i = 0; i < myWindows->count; ++i) {
     MyWindow *mw = (MyWindow *)(myWindows->objects[i]);
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "Looking at window %p id = %d",
+           mw, mw == NULL ? 0 :(int)(mw->id));
     if (mw != NULL && mw->id == id) {
         return i;    
     }
