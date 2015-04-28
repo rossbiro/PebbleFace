@@ -64,7 +64,7 @@ static void send_result(uint32_t tid, int res) {
 }
 
 static int getWindowFromRemote(DictionaryIterator *rdi, MyWindow **mw /* output */) {
-  Tuple *t = dict_find(rdi, KEY_WINDOW_ID);
+  Tuple *t = dict_find(rdi, KEY_WINDOW_HANDLE);
   int wh;
 
   if (t == NULL || t->type != TUPLE_UINT) {
@@ -97,7 +97,7 @@ static int getTextLayerFromRemote(DictionaryIterator *rdi, MyTextLayer **mtl, My
     *mw = lmw;
   }
   
-  t = dict_find(rdi, KEY_TEXT_LAYER_ID);
+  t = dict_find(rdi, KEY_TEXT_LAYER_HANDLE);
   
   if (t == NULL || t->type != TUPLE_UINT) {
     return -ENOLAYER;

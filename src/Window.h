@@ -11,13 +11,18 @@ typedef struct MyWindow {
   uint32_t id;
   struct objects *myTextLayers;
   uint32_t button_config[NUM_BUTTONS];
+  AppTimer *appTimer;
 } MyWindow;
 
+// delay at least 10 ms between updates no matter what resolution is displayed.
+#define MIN_REFRESH_DELAY 10 
+  
 extern struct objects *myWindows;
 
 void deinit_windows();
 int allocWindow();
 MyWindow *getWindowByHandle(int handle);
+void windowRescheduleTimer(MyWindow *mw, uint32_t update_freq);
 
 // The Window Functions called remotely.
 int pushWindow(MyWindow *, DictionaryIterator *);

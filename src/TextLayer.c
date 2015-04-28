@@ -3,11 +3,113 @@
 #include "Window.h"
 #include "Standard.h"
   
-void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
+static GFont default_system_font = NULL;
+
+static int format(char *out, int out_len, const char *in, time_t seconds, int ms) {
+  char format[4];
+  int out_ptr = 0;
+  int format_ptr = 0;
+  struct tm *t = localtime(&seconds);
+  bool saw_percent = false;
+  unsigned update_time = (unsigned)-1;
+  
+  for (int i = 0; in[i] != 0; ++i) {
+    if (out_ptr >= out_len) {
+      return update_time;
+    }
+    
+    if (saw_percent) {
+      switch (in[i]) {
+        case 'k':
+          update_time = 1;
+          out_ptr += snprintf(out + out_ptr, out_len - out_ptr, "%03d", ms);
+          saw_percent = false;
+          update_time = 1;
+          continue;
+        
+          case 'K':
+            // We want minutes:seconds or hours:minutes depending on how much time has elapsed.
+            if (seconds >= 3600) {
+              if (update_time >= 60000) {
+                update_time = 60000;
+              }
+              out_ptr += snprintf(out + out_ptr, out_len - out_ptr, "%02d:%02d", (int)seconds/3600, (int)(seconds/60) % 60);
+            } else {
+              if (update_time > 1000) {
+                update_time = 1000;
+              }
+              out_ptr += snprintf(out + out_ptr, out_len - out_ptr, "%02d:%02d", (int)seconds/60, (int)seconds % 60);
+            }
+          saw_percent = false;
+          continue;
+        
+        default:
+          break;
+      }
+      
+      format[format_ptr++] = in[i];
+      if (format_ptr < 3 && (in[i] == 'E' || in[i] == 'O')) {
+        continue;
+      }
+      saw_percent = false;
+      format[format_ptr] = 0;
+      out_ptr += strftime(out + out_ptr, out_len - out_ptr, format, t);
+      continue;      
+    }
+    
+    switch (in[i]) {
+      case '%':
+        saw_percent = true;
+        format[0] = '%';
+        format_ptr = 1;
+        continue;
+      
+      case 'H': //hour
+      case 'I':
+      case 'k':
+      case 'l':
+        if (update_time > 3600 * 1000) {
+          update_time = 3600 * 1000;
+        }
+        break;
+      
+      case 'M': //minute
+      case 'R':
+        if (update_time > 60 * 1000) {
+          update_time = 60 * 1000;
+        }
+        break;
+      
+      case 's': // seconds
+      case 'S':
+      case 'T':
+      case 'X':
+      case '+':
+      case 'c':
+        if (update_time > 1000) {
+          update_time = 1000;
+        }
+        break;
+      
+      default:
+        break;
+    }    
+    out[out_ptr++] = in[i];   
+  }
+  
+  return update_time;
+}
+  
+int myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
+  int next_ms = -1;
+  if (default_system_font == NULL) {
+    default_system_font = fonts_get_system_font(FONT_KEY_FONT_FALLBACK);
+  }
+  
   if (mtl->tl == NULL) {
     mtl->tl = text_layer_create(mtl->rect);
     if (mtl->tl == NULL) {
-      return;
+      return next_ms;
     }
     layer_add_child(window_get_root_layer(mw->w), text_layer_get_layer(mtl->tl));
   }
@@ -15,14 +117,41 @@ void myTextLayerLoad(MyWindow *mw, MyTextLayer *mtl) {
   text_layer_set_background_color(mtl->tl, mtl->bg);
   text_layer_set_text_color(mtl->tl, mtl->fg);
   if (mtl->text != NULL) {
-    text_layer_set_text(mtl->tl, mtl->text);
+    if (mtl->time != (uint32_t)(-1)) {
+       if (mtl->buff == NULL) {
+         mtl->buff = malloc (mtl->text_length + 1);
+         if (mtl->buff == NULL) {
+           return next_ms;
+         }
+         memset(mtl->buff, 0, mtl->text_length + 1 );
+         //time is considered 0 time. Useful for stopwatches.
+         // set time to 1 to get formating and updating, but only
+         // be off 1ms from real time.
+         time_t sec;
+         uint16_t ms;
+         time_ms(&sec, &ms);
+         sec -= (mtl->time / 1000);
+         ms -= (mtl->time % 1000);
+         while (ms > 32768) {
+           ms += 1000;
+           sec -= 1;
+         }
+         
+         // now we have seconds since the epoch and ms.
+         next_ms = format (mtl->buff, mtl->text_length, mtl->text, sec, ms);
+         text_layer_set_text(mtl->tl, mtl->buff);
+         
+       }
+    } else {
+      text_layer_set_text(mtl->tl, mtl->text);
+    }
   }
 
   text_layer_set_font(mtl->tl, mtl->font);
   text_layer_set_text_alignment(mtl->tl, mtl->alignment);
   
   layer_mark_dirty(text_layer_get_layer(mtl->tl));
-
+  return next_ms;
 }
 
 void myTextLayerUnload(MyWindow *mw, MyTextLayer *mtl) {
@@ -33,9 +162,11 @@ void myTextLayerUnload(MyWindow *mw, MyTextLayer *mtl) {
 
 int createTextLayer(MyWindow *mw, DictionaryIterator *rdi) {
   Tuple *t;
+  int ret;
   MyTextLayer *mtl = malloc(sizeof(*mtl));
   if (mtl == NULL) {
-    return -ENOMEM;
+    ret = -ENOMEM;
+    goto error_out;
   }
   
   mtl->font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
@@ -43,14 +174,33 @@ int createTextLayer(MyWindow *mw, DictionaryIterator *rdi) {
   mtl->fg = GColorBlack;
   mtl->bg = GColorWhite;
   mtl->text = NULL;
+  mtl->text_length = 0;
   mtl->alignment = GTextAlignmentLeft;
   mtl->rect = GRect(0, 55, 144, 50);
+  mtl->time = -1;
   
   t = dict_find(rdi, KEY_ID);
- 
-  mtl->id = tuple_get_uint32(t);
+  if (t != NULL && t->type == TUPLE_UINT) {
+    mtl->id = tuple_get_uint32(t);
+  }
+  
+  t = dict_find(rdi, KEY_LENGTH);
+  mtl->text_length = tuple_get_uint32(t);
+  if (mtl->text_length > 0) {
+    mtl->text = malloc(mtl->text_length + 1);
+    memset(mtl->text, 0, mtl->text_length + 1);
+  }
+  
+  RCC(myTextLayerSetAttributes(mw, mtl, rdi));
   
   return allocObjects(mw->myTextLayers, mtl);
+  
+error_out:
+  if (mtl != NULL) {
+    myTextLayerDestructor(mtl);
+  }
+  
+  return ret;
 }
 
 void myTextLayerDestructor(void *vptr) {
@@ -92,24 +242,33 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
        t != NULL;
        t = dict_read_next(attr)) {
     switch(t->key) {
+      
+      case KEY_ATTRIBUTE_TIME_DELTA:
+        mtl->time = tuple_get_uint32(t);
+        break;
+      
       case KEY_ATTRIBUTE_TEXT:
         if (t->type == TUPLE_CSTRING) {
-          if (mtl->text != NULL) {
-            free(mtl->text);
+          if (mtl->text == NULL) {
+            mtl->text = malloc (t->length + 1);
+            if (mtl->text == NULL) {
+              return -ENOMEM;
+            }
+            mtl->text[t->length] = 0;
+            mtl->text_length = t->length;
           }
-          mtl->text = strdup(t->value->cstring);
+          strncpy(mtl->text, t->value->cstring, mtl->text_length);
           changed = true;
         } else if (t->type == TUPLE_BYTE_ARRAY) {
-          if (mtl->text != NULL) {
-            free(mtl->text);
-          }
-          mtl->text = malloc (t->length + 1);
           if (mtl->text == NULL) {
-            return -ENOMEM;
+            mtl->text = malloc (t->length + 1);
+            if (mtl->text == NULL) {
+              return -ENOMEM;
+            }
+            mtl->text[t->length] = 0;
+            mtl->text_length = t->length;
           }
-          
-          memcpy (mtl->text, t->value->data, t->length);
-          mtl->text[t->length] = 0;
+          memcpy (mtl->text, t->value->data, min(mtl->text_length, t->length));
           changed = true;
         }
         APP_LOG(APP_LOG_LEVEL_DEBUG, "Updated text to %s", mtl->text);
@@ -129,11 +288,10 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
             mtl->font_loaded = false;
           }
           mtl->font = fonts_load_custom_font(resource_get_handle(tuple_get_uint32(t)));
-          if (mtl->font != NULL) {
-            mtl->font_loaded = true;
-          } else {
+          if (mtl->font == default_system_font) {
             return -ENOFONT;
           }
+          mtl->font_loaded = true;
           changed = true;
         } else if (t->type == TUPLE_BYTE_ARRAY) {
           char font_name[t->length + 1];
@@ -180,7 +338,10 @@ myTextLayerSetAttributes(MyWindow *mw, MyTextLayer *mtl, DictionaryIterator *att
   }
   
   if (changed) {
-    myTextLayerLoad(mw, mtl);
+    uint32_t next = myTextLayerLoad(mw, mtl);
+    if (next != (unsigned)-1) {
+      windowRescheduleTimer(mw, next);
+    }
   }
   return 0;
 }

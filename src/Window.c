@@ -10,6 +10,11 @@ static void MyWindowDestructor(void *vptr) {
     mw->myTextLayers = NULL;
   }
   
+  if (mw->appTimer) {
+    app_timer_cancel(mw->appTimer);
+    mw->appTimer = NULL;
+  }
+  
   if (mw->w) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "About to call window_destroy. mw=%p w=%p", mw, mw->w);
     window_stack_remove(mw->w, false);
@@ -29,10 +34,44 @@ static MyWindow *findMyWindow(Window *w) {
 
 static void window_load(Window *w) {
   MyWindow *mw = findMyWindow(w);
+  unsigned update_freq = (unsigned) -1;
+  
   for (int i = 0; i < mw->myTextLayers->count; ++i) {
     MyTextLayer *mtl = (MyTextLayer *)mw->myTextLayers->objects[i];
     if (mtl != NULL) {
-      myTextLayerLoad(mw, mtl);
+      unsigned f = myTextLayerLoad(mw, mtl);
+      if (f < update_freq) {
+        update_freq = f;
+      }
+    }
+  }
+  if (update_freq != (unsigned) -1) {
+    windowRescheduleTimer(mw, update_freq);
+  }
+}
+
+static void timer_callback(void *vptr) {
+  MyWindow *mw = (MyWindow *)vptr;
+  window_load(mw->w);
+}
+
+
+void windowRescheduleTimer(MyWindow *mw, uint32_t update_freq) {
+  if (update_freq != (unsigned) -1) {
+    time_t sec;
+    uint16_t ms;
+    time_ms(&sec, &ms);
+    uint32_t now = ms + sec * 1000;
+    now = now % ms;
+    now -= ms;
+    // now is now the delay to the next time the timer should go off.
+    if (now < MIN_REFRESH_DELAY) {
+      now = MIN_REFRESH_DELAY;
+    }
+    if (mw->appTimer == NULL) {
+      mw->appTimer = app_timer_register(now, timer_callback, mw);
+    } else {
+      app_timer_reschedule(mw->appTimer, now);
     }
   }
 }
@@ -42,7 +81,7 @@ static void window_unload(Window *w) {
   for (int i = 0; i < mw->myTextLayers->count; ++i) {
     MyTextLayer *mtl = (MyTextLayer *)mw->myTextLayers->objects[i];
     if (mtl != NULL) {
-      myTextLayerLoad(mw, mtl);
+      myTextLayerUnload(mw, mtl);
     }
   }
 }
@@ -59,6 +98,7 @@ int resetWindows(DictionaryIterator *rdi) {
   objects *tmpWindows;
   APP_LOG(APP_LOG_LEVEL_DEBUG, "resetWindows");
   
+  // Doesn't currently work once windows exist.
   if (myWindows != NULL) {
     return 0;
   }
@@ -117,7 +157,9 @@ int allocWindow(DictionaryIterator *rdi) {
   
     mw->id = 0;
     mw->w = window_create();
-    if (mw->w == NULL) {
+    mw->appTimer = NULL;
+
+  if (mw->w == NULL) {
       freeObjects(mw->myTextLayers);
       free(mw);
       return -ENOMEM;

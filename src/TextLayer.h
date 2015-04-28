@@ -15,16 +15,19 @@ typedef struct MyTextLayer {
   GColor bg;
   GFont font;
   char *text;
+  char *buff;
+  int text_length;
   bool font_loaded;
   GTextAlignment alignment;
   struct MyWindow *parent;
+  uint32_t time; // always in ms.
 } MyTextLayer;
 
 void text_layer_load(struct MyWindow *, MyTextLayer *);
 void text_layer_unload(struct MyWindow *, MyTextLayer *);
 
 void myTextLayerDestructor(void *);
-void myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
+int myTextLayerLoad(struct MyWindow *mw, MyTextLayer *mtl);
 void myTextLayerUnload(struct MyWindow *mw, MyTextLayer *mtl);
 MyTextLayer *getTextLayerByHandle(struct MyWindow *mw, int id);
 
