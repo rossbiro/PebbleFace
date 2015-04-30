@@ -16,7 +16,7 @@ typedef enum RemoteFuncs {
   FUNC_GET_DICTIONARY_BY_ID,
   FUNC_GET_TEXT_LAYER_BY_ID,
   FUNC_CLEAR_WINDOW,
-  FUNC_RESET_WINDOWS,
+  FUNC_RESET_WINDOWS, // not really working yet.
 } RemoteFuncs;
 
 enum Keys {
